@@ -1,0 +1,479 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define TABLE_SIZE 20
+#define MIN_PORT 1024
+#define MAX_PORT 65535
+
+typedef struct {
+    char url[100];
+    char ip_address[16];
+    char mac_address[18];
+    int is_Occupied;
+} HashEntry;
+
+// Function Prototypes
+int hashFunction(char domain[]);
+void insertEntry(HashEntry table[], char domain[], char ip[], char mac[]);
+void displayEntryTable(HashEntry table[]);
+void updateEntry(HashEntry table[], char domain[], char ip[], char mac[]);
+void deleteEntry(HashEntry table[], char domain[]);
+int searchEntry(HashEntry table[], char domain[], char ipOut[], char macOut[]);
+int readFile(char *filename, char message[]);
+
+// Binary Conversion Helpers
+void print8BitBinary(unsigned char value);
+void print16BitBinary(unsigned short value);
+void getIPBinary(char ip[], char output[]);
+void getMACBinary(char mac[], char output[]);
+
+int hashFunction(char url[]) {
+    int sum = 0;
+    for (int i = 0; url[i] != '\0'; i++) {
+        sum += (int)url[i];
+    }
+    return sum % TABLE_SIZE;
+}
+
+void insertEntry(HashEntry table[], char url[], char ip[], char mac[]) {
+    int index = hashFunction(url);
+    int startIndex = index;
+
+    while (table[index].is_Occupied) {
+        if (strcmp(table[index].url, url) == 0) {
+            return; // Duplicate guard
+        }
+        index = (index + 1) % TABLE_SIZE;
+        if (index == startIndex) return;
+    }
+    strcpy(table[index].url, url);
+    strcpy(table[index].ip_address, ip);
+    strcpy(table[index].mac_address, mac);
+    table[index].is_Occupied = 1;
+}
+
+void displayEntryTable(HashEntry table[]) {
+    printf("\nIndex\t%-25s\t%-15s\t%s\n", "URL", "IP Address", "MAC Address");
+    printf("-------------------------------------------------------------------------\n");
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        if (table[i].is_Occupied) {
+            printf("%d\t%-25s\t%-15s\t%s\n", i, table[i].url, table[i].ip_address, table[i].mac_address);
+        } else {
+            printf("%d\t--- EMPTY ---\n", i);
+        }
+    }
+}
+
+void updateEntry(HashEntry table[], char url[], char ip[], char mac[]) {
+    int index = hashFunction(url);
+    int steps = 0;
+    while (steps < TABLE_SIZE) {
+        if (table[index].is_Occupied && strcmp(table[index].url, url) == 0) {
+            strcpy(table[index].ip_address, ip);
+            strcpy(table[index].mac_address, mac);
+            printf("Entry updated successfully.\n");
+            return;
+        }
+        index = (index + 1) % TABLE_SIZE;
+        steps++;
+    }
+    printf("Domain not found.\n");
+}
+
+void deleteEntry(HashEntry table[], char url[]) {
+    int index = hashFunction(url);
+    int steps = 0;
+    while (steps < TABLE_SIZE) {
+        if (table[index].is_Occupied && strcmp(table[index].url, url) == 0) {
+            table[index].is_Occupied = 0;
+            printf("Entry deleted successfully.\n");
+            return;
+        }
+        index = (index + 1) % TABLE_SIZE;
+        steps++;
+    }
+    printf("Domain not found.\n");
+}
+
+int searchEntry(HashEntry table[], char url[], char ipOut[], char macOut[]) {
+    int index = hashFunction(url);
+    int steps = 0;
+    while (steps < TABLE_SIZE) {
+        if (table[index].is_Occupied && strcmp(table[index].url, url) == 0) {
+            strcpy(ipOut, table[index].ip_address);
+            strcpy(macOut, table[index].mac_address);
+            return 1;
+        }
+        index = (index + 1) % TABLE_SIZE;
+        steps++;
+    }
+    return 0;
+}
+
+int readFile(char *fname, char message[]) {
+    FILE *fp = fopen(fname, "r");
+    if (fp == NULL) {
+        // Fallback file generation if missing
+        fp = fopen(fname, "w");
+        if(fp) { fputs("Hello", fp); fclose(fp); }
+        fp = fopen(fname, "r");
+    }
+    int count = 0;
+    char ch;
+    while ((ch = fgetc(fp)) != EOF && count < 999) {
+        if(ch != '\r' && ch != '\n') { // Ignore linebreaks for raw sizing accuracy
+            message[count++] = ch;
+        }
+    }
+    message[count] = '\0';
+    fclose(fp);
+    return count;
+}
+
+void print8BitBinary(unsigned char value) {
+    for (int i = 7; i >= 0; i--) printf("%d", (value >> i) & 1);
+}
+
+void print16BitBinary(unsigned short value) {
+    for (int i = 15; i >= 0; i--) printf("%d", (value >> i) & 1);
+}
+
+void getIPBinary(char ip[], char output[]) {
+    int o1, o2, o3, o4;
+    // Simple, explicit human-style scanf parsing
+    sscanf(ip, "%d.%d.%d.%d", &o1, &o2, &o3, &o4);
+    
+    int pos = 0;
+    int i;
+
+    // Convert Octet 1
+    for (i = 7; i >= 0; i--) {
+        if ((o1 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Octet 2
+    for (i = 7; i >= 0; i--) {
+        if ((o2 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Octet 3
+    for (i = 7; i >= 0; i--) {
+        if ((o3 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Octet 4
+    for (i = 7; i >= 0; i--) {
+        if ((o4 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+
+    output[pos] = '\0'; // End the string properly
+}
+
+void getMACBinary(char mac[], char output[]) {
+    unsigned int m1, m2, m3, m4, m5, m6;
+    // Simple, explicit human-style hex parsing
+    sscanf(mac, "%x:%x:%x:%x:%x:%x", &m1, &m2, &m3, &m4, &m5, &m6);
+    
+    int pos = 0;
+    int i;
+
+    // Convert Byte 1
+    for (i = 7; i >= 0; i--) {
+        if ((m1 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Byte 2
+    for (i = 7; i >= 0; i--) {
+        if ((m2 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Byte 3
+    for (i = 7; i >= 0; i--) {
+        if ((m3 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Byte 4
+    for (i = 7; i >= 0; i--) {
+        if ((m4 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Byte 5
+    for (i = 7; i >= 0; i--) {
+        if ((m5 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+    // Convert Byte 6
+    for (i = 7; i >= 0; i--) {
+        if ((m6 >> i) % 2 != 0) {
+            output[pos++] = '1';
+        } else {
+            output[pos++] = '0';
+        }
+    }
+
+    output[pos] = '\0'; // End the string properly
+}
+int main() {
+    HashEntry hashTable[TABLE_SIZE];
+    char message[1000];
+    int messageLength = 0;
+
+    for (int i = 0; i < TABLE_SIZE; i++) hashTable[i].is_Occupied = 0;
+
+    // Seed 10 realistic corporate mappings
+    insertEntry(hashTable, "www.google.com", "142.250.10.1", "AA:11:22:33:44:55");
+    insertEntry(hashTable, "www.mepcoeng.ac.in", "117.239.182.3", "BB:22:33:44:55:66");
+    insertEntry(hashTable, "www.wikipedia.org", "198.35.26.1", "DD:44:55:66:77:88");
+    insertEntry(hashTable, "www.github.com", "140.82.121.4", "CC:AA:BB:CC:DD:EE");
+    insertEntry(hashTable, "www.yahoo.com", "98.137.11.163", "00:11:A2:B3:C4:D5");
+    insertEntry(hashTable, "www.microsoft.com", "20.112.52.29", "12:34:56:78:9A:BC");
+    insertEntry(hashTable, "www.amazon.com", "205.251.242.103", "FE:DC:BA:98:76:54");
+    insertEntry(hashTable, "www.reddit.com", "151.101.1.140", "A1:B2:C3:D4:E5:F6");
+    insertEntry(hashTable, "www.linkedin.com", "108.174.10.10", "44:55:66:77:88:99");
+    insertEntry(hashTable, "www.apple.com", "17.253.144.10", "11:AA:22:BB:33:CC");
+
+    int choice = 0;
+    char url[100], ip[16], mac[18];
+
+    // Phase 1 Loop
+    while (choice != 5) {
+        printf("\n======= MENU =======\n");
+        printf("1. Display Hash Table\n");
+        printf("2. Add New URL Entry\n");
+        printf("3. Update Existing Entry\n");
+        printf("4. Delete Entry\n");
+        printf("5. Network Layers\n");
+        printf("6. Exit\n");
+        printf("Select an option (1-6): ");
+        if (scanf("%d", &choice) != 1) break;
+
+        if (choice == 1) {
+            displayEntryTable(hashTable);
+        } else if (choice == 2) {
+            printf("Enter URL: "); scanf("%99s", url);
+            printf("Enter IP: "); scanf("%15s", ip);
+            printf("Enter MAC: "); scanf("%17s", mac);
+            insertEntry(hashTable, url, ip, mac);
+        } else if (choice == 3) {
+            printf("Enter URL to Update: "); scanf("%99s", url);
+            printf("Enter New IP: "); scanf("%15s", ip);
+            printf("Enter New MAC: "); scanf("%17s", mac);
+            updateEntry(hashTable, url, ip, mac);
+        } else if (choice == 4) {
+            printf("Enter URL to Delete: "); scanf("%99s", url);
+            deleteEntry(hashTable, url);
+        } else if (choice == 5) {
+            // Intentional reproduction of the loop termination choice
+            break;
+        } else if (choice == 6) {
+            exit(0);
+        } else {
+            printf("Invalid selection.\n");
+        }
+    }
+
+    // Phase 2 Initialization Setup
+    
+    // Phase 2 Initialization Setup
+    char filename[100];
+
+    printf("Enter the file name: ");
+    scanf("%99s", filename);
+
+    messageLength = readFile(filename, message);
+
+    if (messageLength < 0)
+    {
+        printf("Error: Could not open %s\n", filename);
+        return 1;
+    }
+
+    char srcUrl[100], destUrl[100];
+    char srcIP[16], srcMAC[18], destIP[16], destMAC[18];
+
+    printf("\n================ INPUT =======================\n");
+    printf("Enter Source URL      : "); scanf("%99s", srcUrl);
+    printf("Enter Destination URL : "); scanf("%99s", destUrl);
+
+    if (!searchEntry(hashTable, srcUrl, srcIP, srcMAC) || !searchEntry(hashTable, destUrl, destIP, destMAC)) {
+        printf("Error: URL records could not be recovered from hash matrix.\n");
+        return 1;
+    }
+
+    printf("\n================ HASH TABLE ==================\n");
+    printf("Source      URL: %-20s -> IP: %-13s MAC: %s\n", srcUrl, srcIP, srcMAC);
+    printf("Destination URL: %-20s -> IP: %-13s MAC: %s\n", destUrl, destIP, destMAC);
+
+    // LAYER 1: APPLICATION LAYER
+    printf("\n================ LAYER 1 : APPLICATION LAYER ================\n");
+    printf("Original Message : %s\n", message);
+    printf("Message in Binary    :\n");
+    for (int i = 0; i < messageLength; i++) {
+        print8BitBinary((unsigned char)message[i]);
+    }
+    int totalBits = messageLength * 8;
+    printf("\nTotal bits generated : %d\n", totalBits);
+
+    // LAYER 2: TRANSPORT LAYER
+    printf("\n================ LAYER 2 : TRANSPORT LAYER ==================\n");
+    srand(time(NULL));
+    unsigned short srcPort = (rand() % (MAX_PORT - MIN_PORT + 1)) + MIN_PORT;
+    unsigned short destPort = (rand() % (MAX_PORT - MIN_PORT + 1)) + MIN_PORT;
+    printf("Source Port      : %-6d -> Binary: ", srcPort); print16BitBinary(srcPort); printf("\n");
+    printf("Destination Port : %-6d -> Binary: ", destPort); print16BitBinary(destPort); printf("\n");
+
+    /// LAYER 3: NETWORK LAYER
+printf("\n================ LAYER 3 : NETWORK LAYER =====================\n");
+
+char srcIPBin[33], destIPBin[33];
+getIPBinary(srcIP, srcIPBin);
+getIPBinary(destIP, destIPBin);
+
+char networkFinal[10000] = "";
+
+int totalPackets = (messageLength + 1) / 2;
+
+for (int p = 0; p < totalPackets; p++)
+{
+    printf("\n-- Packet %d --\n", p + 1);
+    printf("  Source IP            : %s (%s)\n", srcIPBin, srcIP);
+    printf("  Destination IP       : %s (%s)\n", destIPBin, destIP);
+
+    printf("  Data (16 bits)       : ");
+
+    for(int i=7;i>=0;i--)
+    {
+        char bit=((message[p*2]>>i)&1)+'0';
+        printf("%c",bit);
+        strncat(networkFinal,&bit,1);
+    }
+
+    if(p*2+1<messageLength)
+    {
+        for(int i=7;i>=0;i--)
+        {
+            char bit=((message[p*2+1]>>i)&1)+'0';
+            printf("%c",bit);
+            strncat(networkFinal,&bit,1);
+        }
+    }
+    else
+    {
+        printf("00000000");
+        strcat(networkFinal,"00000000");
+    }
+
+    printf("\n");
+}
+
+strcat(networkFinal,srcIPBin);
+strcat(networkFinal,destIPBin);
+
+printf("\n Final Output         : %s\n",networkFinal);
+printf("\nTotal Packets Created : %d\n",totalPackets);
+
+    // LAYER 4: DATA LINK LAYER
+printf("\n================ LAYER 4 : DATA LINK LAYER ====================\n");
+
+char srcMACBin[49], destMACBin[49];
+getMACBinary(srcMAC, srcMACBin);
+getMACBinary(destMAC, destMACBin);
+
+char dataLinkFinal[20000] = "";
+
+int totalFrames = totalPackets * 2;
+
+for (int p = 0; p < totalPackets; p++)
+{
+    // Frame A
+    printf("\n-- Frame %d (from Packet %d) --\n",(p*2)+1,p+1);
+    printf("  Source IP          : %s (%s)\n",srcIPBin,srcIP);
+    printf("  Destination IP     : %s (%s)\n",destIPBin,destIP);
+    printf("  Source MAC         : %s (%s)\n",srcMACBin,srcMAC);
+    printf("  Destination MAC    : %s (%s)\n",destMACBin,destMAC);
+
+    printf("  Data (8 bits)      : ");
+
+    for(int i=7;i>=0;i--)
+    {
+        char bit=((message[p*2]>>i)&1)+'0';
+        printf("%c",bit);
+        strncat(dataLinkFinal,&bit,1);
+    }
+
+    printf("\n");
+    printf("  Trailer            : 00000000\n");
+
+    // Frame B
+    printf("\n-- Frame %d (from Packet %d) --\n",(p*2)+2,p+1);
+    printf("  Source IP          : %s (%s)\n",srcIPBin,srcIP);
+    printf("  Destination IP     : %s (%s)\n",destIPBin,destIP);
+    printf("  Source MAC         : %s (%s)\n",srcMACBin,srcMAC);
+    printf("  Destination MAC    : %s (%s)\n",destMACBin,destMAC);
+
+    printf("  Data (8 bits)      : ");
+
+    if(p*2+1<messageLength)
+    {
+        for(int i=7;i>=0;i--)
+        {
+            char bit=((message[p*2+1]>>i)&1)+'0';
+            printf("%c",bit);
+            strncat(dataLinkFinal,&bit,1);
+        }
+    }
+    else
+    {
+        printf("00000000");
+        strcat(dataLinkFinal,"00000000");
+    }
+
+    printf("\n");
+    printf("  Trailer            : 00000000\n");
+}
+
+strcat(dataLinkFinal,srcMACBin);
+strcat(dataLinkFinal,destMACBin);
+strcat(dataLinkFinal,srcIPBin);
+strcat(dataLinkFinal,destIPBin);
+
+printf("\nFinal Output         : %s\n",dataLinkFinal);
+printf("\nTotal Frames Created : %d\n",totalFrames);
+    // SUMMARY
+    printf("\n================ SUMMARY ======================================\n");
+    printf("Total bits in message : %d\n", totalBits);
+    printf("Total packets created : %d\n", totalPackets);
+    printf("Total frames created  : %d\n", totalFrames);
+
+    return 0;
+}
