@@ -1,0 +1,27 @@
+class Solution {
+public:
+    bool hasMatch(string s, string p) 
+    {
+        int star = p.find('*');
+
+        string first = p.substr(0, star);
+        string second = p.substr(star + 1);
+
+        int pos1 = s.find(first);
+
+        if(pos1 == string::npos)
+        {
+            return false;
+        }
+
+        int pos2 = s.find(second, pos1 + first.size());
+
+        if(pos2 == string::npos)
+        {
+            return false;
+        }
+
+        return true;
+    }
+};
+        

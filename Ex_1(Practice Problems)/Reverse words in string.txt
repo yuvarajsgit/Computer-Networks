@@ -1,0 +1,47 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+string reverseWords(string &s)
+{
+    stringstream ss(s);
+    vector<string> words;
+    string word;
+
+    while(ss >> word)
+    {
+        words.push_back(word);
+    }
+
+    reverse(words.begin(), words.end());
+
+    string ans = "";
+
+    for(int i = 0; i < words.size(); i++)
+    {
+        if(i > 0)
+        {
+            ans += " ";
+        }
+
+        ans += words[i];
+    }
+
+    return ans;
+}
+
+int main()
+{
+    int T;
+    cin >> T;
+    cin.ignore();
+
+    while(T--)
+    {
+        string s;
+        getline(cin, s);
+
+        cout << reverseWords(s) << endl;
+    }
+
+    return 0;
+}
