@@ -1,0 +1,29 @@
+class Solution {
+public:
+    string addBinary(string a, string b) {
+        string result = "";
+        int i = a.length() - 1;
+        int j = b.length() - 1;
+        int carry = 0;
+
+        // Loop until both strings are processed and no carry remains
+        while (i >= 0 || j >= 0 || carry) {
+            // Get the integer bit value, or 0 if pointer is out of bounds
+            int bitA = (i >= 0) ? a[i] - '0' : 0;
+            int bitB = (j >= 0) ? b[j] - '0' : 0;
+
+            // Move the pointers left
+            if (i >= 0) i--;
+            if (j >= 0) j--;
+
+            int sum = bitA + bitB + carry;
+            
+            result += to_string(sum % 2); // Current column bit (0 or 1)
+            carry = sum / 2;             // Next column carry (0 or 1)
+        }
+
+        // The result is built backwards, so reverse it before returning
+        reverse(result.begin(), result.end());
+        return result;
+    }
+};
