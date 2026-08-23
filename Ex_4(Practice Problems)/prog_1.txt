@@ -1,0 +1,41 @@
+class Solution {
+public:
+    int dfs(int node, vector<vector<pair<int, int>>>& graph,
+            vector<int>& visited) {
+
+        visited[node] = 1;
+        int count = 0;
+
+        for (auto edge : graph[node]) {
+            int next = edge.first;
+            int needsReverse = edge.second;
+
+            if (!visited[next]) {
+                count += needsReverse;
+                count += dfs(next, graph, visited);
+            }
+        }
+
+        return count;
+    }
+
+    int minReorder(int n, vector<vector<int>>& connections) {
+
+        vector<vector<pair<int, int>>> graph(n);
+
+        for (auto edge : connections) {
+            int a = edge[0];
+            int b = edge[1];
+
+            // Original direction: a -> b
+            graph[a].push_back({b, 1});
+
+            // Reverse direction: b -> a
+            graph[b].push_back({a, 0});
+        }
+
+        vector<int> visited(n, 0);
+
+        return dfs(0, graph, visited);
+    }
+};
