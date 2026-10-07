@@ -1,0 +1,136 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#define TABLE_SIZE 10
+
+// Hash Node structure for chaining collision resolution
+struct HashNode {
+    char domain[100];
+    char ip[100];
+    struct HashNode *next;
+};
+
+// Hash Table structure
+struct HashNode *hashTable[TABLE_SIZE];
+
+// Simple Hash Function (djb2 or sum of chars modulo TABLE_SIZE)
+unsigned int hash(const char *str) {
+    unsigned int hashValue = 0;
+    while (*str) {
+        hashValue = (hashValue * 31) + *str;
+        str++;
+    }
+    return hashValue % TABLE_SIZE;
+}
+
+// Function to insert a domain-IP record into the hash table
+void insert(const char *domain, const char *ip) {
+    unsigned int slot = hash(domain);
+    struct HashNode *newNode = (struct HashNode *)malloc(sizeof(struct HashNode));
+    strcpy(newNode->domain, domain);
+    strcpy(newNode->ip, ip);
+    newNode->next = hashTable[slot];
+    hashTable[slot] = newNode;
+}
+
+// Function to lookup a domain in the hash table
+const char* search(const char *domain) {
+    unsigned int slot = hash(domain);
+    struct HashNode *current = hashTable[slot];
+    while (current != NULL) {
+        if (strcmp(current->domain, domain) == 0) {
+            return current->ip;
+        }
+        current = current->next;
+    }
+    return NULL; // Not found
+}
+
+// Initialize the Hash Table with multiple records
+void initDNSDatabase() {
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        hashTable[i] = NULL;
+    }
+
+    insert("vscode.com", "192.168.1.10");
+    insert("google.com", "142.250.190.46");
+    insert("github.com", "140.82.121.4");
+    insert("chatgpt.com", "93.184.216.34");
+    insert("openai.com", "104.18.7.162");
+    insert("microsoft.com", "151.101.65.69");
+    insert("wikipedia.org", "208.80.154.224");
+    insert("python.org", "151.101.193.223");
+}
+
+int main()
+{
+    int sockfd;
+    char buffer[1024];
+    struct sockaddr_in serverAddr, clientAddr;
+    socklen_t addrLen = sizeof(clientAddr);
+
+    // Initialize hash table records
+    initDNSDatabase();
+
+    // 1. Create UDP socket
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0)
+    {
+        printf("Socket creation failed\n");
+        return 1;
+    }
+
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(5000);
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+
+    // 2. Bind socket
+    if (bind(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
+    {
+        printf("Bind failed\n");
+        close(sockfd);
+        return 1;
+    }
+
+    printf("Iterative UDP DNS Server (with Hash Table) is running on port 5000...\n");
+
+    // 3. Iterative server loop
+    while (1)
+    {
+        // Receive domain query from client
+        int n = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0, (struct sockaddr *)&clientAddr, &addrLen);
+        if (n < 0)
+        {
+            printf("Receive failed\n");
+            continue;
+        }
+        buffer[n] = '\0';
+        
+        // Remove trailing newline if sent by client fgets
+        buffer[strcspn(buffer, "\r\n")] = 0;
+
+        printf("Received DNS Query for domain: %s\n", buffer);
+
+        // Search for domain in hash table ($O(1)$ average time complexity)
+        const char *found_ip = search(buffer);
+        char response[1024];
+
+        if (found_ip != NULL) {
+            strcpy(response, found_ip);
+        } else {
+            strcpy(response, "Error: Domain not found");
+        }
+
+        // Send IP address (or error) back to client
+        sendto(sockfd, response, strlen(response), 0, (struct sockaddr *)&clientAddr, addrLen);
+        printf("Sent response IP: %s \n\n", response);
+    }
+
+    close(sockfd);
+    return 0;
+}
